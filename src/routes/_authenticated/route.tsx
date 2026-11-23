@@ -6,7 +6,7 @@ import { AppShell } from "@/components/bcp/AppShell";
 import { QuickStartPresentation } from "@/components/account/QuickStartPresentation";
 import { displayName, fetchProfile, profileOnboardingStore } from "@/lib/account/profile";
 import { maybeStartOnboarding } from "@/lib/account/onboarding";
-import { setAuditUser } from "@/lib/bcp/store";
+import { setAuditUser, setStorageScope } from "@/lib/bcp/store";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -24,7 +24,11 @@ function AuthenticatedLayout() {
   const nav = useNavigate();
   const { data: profile } = useQuery({ queryKey: ["profile", user.id], queryFn: () => fetchProfile(user.id) });
   const name = displayName(profile, user.email);
-  useEffect(() => { setAuditUser(user.email ? `${name} <${user.email}>` : name); }, [name, user.email]);
+  useEffect(() => {
+    setAuditUser(user.email ? `${name} <${user.email}>` : name);
+    // Until workspace selection is introduced, the authenticated user is the isolation boundary.
+    setStorageScope(`user:${user.id}`);
+  }, [name, user.email, user.id]);
   const checked = useRef<string | null>(null);
   useEffect(() => {
     if (!profile || checked.current === user.id) return;
@@ -34,6 +38,7 @@ function AuthenticatedLayout() {
   async function signOut() {
     await qc.cancelQueries(); qc.clear();
     setAuditUser(null);
+    setStorageScope(null);
     await supabase.auth.signOut();
     nav({ to: "/sign-in", replace: true });
   }
