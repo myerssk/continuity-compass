@@ -46,3 +46,10 @@ export async function requestServiceNowSync(workspaceId: string, userId: string,
   await appendWorkspaceAudit(workspaceId, userId, dryRun ? "sync_preview_requested" : "sync_requested", "servicenow", data.id, `${dryRun ? "Preview" : "Live"} ServiceNow ${direction} synchronization requested`);
   return data as ServiceNowSyncRun;
 }
+
+export type WorkspaceAuditEvent = { id: string; workspace_id: string; actor_user_id: string; action: string; entity_type: string; entity_id: string | null; summary: string; metadata: Record<string, unknown>; occurred_at: string };
+export async function listWorkspaceAuditEvents(workspaceId: string) {
+  const { data, error } = await supabase.from("workspace_audit_events").select("*").eq("workspace_id", workspaceId).order("occurred_at", { ascending: false }).limit(500);
+  if (error) throw error;
+  return (data ?? []) as WorkspaceAuditEvent[];
+}
