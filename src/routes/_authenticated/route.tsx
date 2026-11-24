@@ -9,6 +9,7 @@ import { maybeStartOnboarding } from "@/lib/account/onboarding";
 import { importDb, setAuditUser, setCommitHook, setStorageScope } from "@/lib/bcp/store";
 import { getSelectedWorkspaceId, listMyWorkspaces, setSelectedWorkspaceId } from "@/lib/account/workspaces";
 import { loadWorkspaceBcpState, saveWorkspaceBcpState } from "@/lib/bcp/cloud-state";
+import { appendWorkspaceAudit } from "@/lib/integrations/servicenow";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -46,10 +47,11 @@ function AuthenticatedLayout() {
       revision = cloud?.revision ?? 0;
       if (cloud?.state) importDb(cloud.state);
       hydrated = true;
-      setCommitHook(async (next) => {
+      setCommitHook(async (next, entry) => {
         if (!hydrated || cancelled) return;
         const saved = await saveWorkspaceBcpState(activeWorkspaceId, next, user.id, revision);
         revision = saved.revision;
+        if (entry) await appendWorkspaceAudit(activeWorkspaceId, user.id, entry.action, entry.table, entry.record_id, entry.summary, { local_audit_id: entry.id });
       });
     });
     return () => {
