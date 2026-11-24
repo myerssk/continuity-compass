@@ -6,7 +6,9 @@ import { AppShell } from "@/components/bcp/AppShell";
 import { QuickStartPresentation } from "@/components/account/QuickStartPresentation";
 import { displayName, fetchProfile, profileOnboardingStore } from "@/lib/account/profile";
 import { maybeStartOnboarding } from "@/lib/account/onboarding";
-import { setAuditUser, setStorageScope } from "@/lib/bcp/store";
+import { importDb, setAuditUser, setStorageScope } from "@/lib/bcp/store";
+import { getSelectedWorkspaceId, listMyWorkspaces, setSelectedWorkspaceId } from "@/lib/account/workspaces";
+import { loadWorkspaceBcpState } from "@/lib/bcp/cloud-state";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -24,11 +26,23 @@ function AuthenticatedLayout() {
   const nav = useNavigate();
   const { data: profile } = useQuery({ queryKey: ["profile", user.id], queryFn: () => fetchProfile(user.id) });
   const name = displayName(profile, user.email);
+  const { data: memberships = [] } = useQuery({ queryKey: ["workspaces", user.id], queryFn: listMyWorkspaces });
+  const selectedWorkspaceId = getSelectedWorkspaceId(user.id);
+  const activeMembership = memberships.find((m: any) => m.workspace_id === selectedWorkspaceId) ?? memberships[0];
+  const activeWorkspaceId = activeMembership?.workspace_id ?? null;
   useEffect(() => {
     setAuditUser(user.email ? `${name} <${user.email}>` : name);
-    // Until workspace selection is introduced, the authenticated user is the isolation boundary.
-    setStorageScope(`user:${user.id}`);
-  }, [name, user.email, user.id]);
+    setStorageScope(activeWorkspaceId ? `workspace:${activeWorkspaceId}` : `user:${user.id}`);
+    if (activeWorkspaceId && activeWorkspaceId !== selectedWorkspaceId) setSelectedWorkspaceId(user.id, activeWorkspaceId);
+  }, [name, user.email, user.id, activeWorkspaceId, selectedWorkspaceId]);
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    let cancelled = false;
+    void loadWorkspaceBcpState(activeWorkspaceId).then((cloud) => {
+      if (!cancelled && cloud?.state) importDb(cloud.state);
+    });
+    return () => { cancelled = true; };
+  }, [activeWorkspaceId]);
   const checked = useRef<string | null>(null);
   useEffect(() => {
     if (!profile || checked.current === user.id) return;
