@@ -28,6 +28,17 @@ export function setStorageScope(scope: string | null | undefined) {
 export const getStorageScope = () => storageScope;
 export function setCommitHook(hook: ((next: Db) => void | Promise<void>) | null) { commitHook = hook; }
 export const legacySharedDataExists = () => typeof window !== "undefined" && localStorage.getItem(LEGACY_STORAGE_KEY) !== null;
+export function exportLegacySharedBackup(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LEGACY_STORAGE_KEY);
+}
+export function importLegacySharedDataIntoCurrentScope() {
+  if (typeof window === "undefined") throw new Error("Legacy browser storage is unavailable.");
+  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) throw new Error("No legacy shared data was found.");
+  const parsed = JSON.parse(raw) as Db;
+  importDb({ ...emptyDb(), ...parsed, mode: parsed.mode ?? "user" });
+}
 const SERVER = emptyDb();
 let db: Db = SERVER;
 let loaded = false;
