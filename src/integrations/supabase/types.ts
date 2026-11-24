@@ -74,6 +74,12 @@ export type Database = {
         Update: { compass_type?: string; compass_id?: string; servicenow_table?: string; servicenow_sys_id?: string; sync_direction?: string; last_synced_at?: string | null; last_hash?: string | null }
         Relationships: []
       }
+      servicenow_field_mappings: {
+        Row: { id: string; workspace_id: string; compass_entity: string; compass_field: string; servicenow_table: string; servicenow_field: string; direction: string; enabled: boolean; transform_rule: Json; created_at: string; updated_at: string }
+        Insert: { id?: string; workspace_id: string; compass_entity: string; compass_field: string; servicenow_table: string; servicenow_field: string; direction: string; enabled?: boolean; transform_rule?: Json; created_at?: string; updated_at?: string }
+        Update: { compass_entity?: string; compass_field?: string; servicenow_table?: string; servicenow_field?: string; direction?: string; enabled?: boolean; transform_rule?: Json; updated_at?: string }
+        Relationships: []
+      }
       servicenow_sync_runs: {
         Row: { id: string; workspace_id: string; direction: string; dry_run: boolean; status: string; requested_by: string; started_at: string | null; completed_at: string | null; summary: Json; error_message: string | null; created_at: string }
         Insert: { id?: string; workspace_id: string; direction: string; dry_run?: boolean; status?: string; requested_by: string; started_at?: string | null; completed_at?: string | null; summary?: Json; error_message?: string | null; created_at?: string }
