@@ -9,7 +9,7 @@ const scopedStorageKey = (scope: string) => `continuity-compass-db-v3:${scope}`;
 export let adapter: StorageAdapter = localStorageAdapter(scopedStorageKey("anonymous"));
 let storageScope = "anonymous";
 let auditUser = "Plan Coordinator";
-let commitHook: ((next: Db) => void | Promise<void>) | null = null;
+let commitHook: ((next: Db, auditEntry?: Db["audit_log"][number]) => void | Promise<void>) | null = null;
 /** Audit attribution: the signed-in account's name/email replaces the generic default. */
 export function setAuditUser(name: string | null | undefined) { auditUser = name?.trim() || "Plan Coordinator"; }
 export const getAuditUser = () => auditUser;
@@ -26,7 +26,7 @@ export function setStorageScope(scope: string | null | undefined) {
   subs.forEach((fn) => fn());
 }
 export const getStorageScope = () => storageScope;
-export function setCommitHook(hook: ((next: Db) => void | Promise<void>) | null) { commitHook = hook; }
+export function setCommitHook(hook: ((next: Db, auditEntry?: Db["audit_log"][number]) => void | Promise<void>) | null) { commitHook = hook; }
 export const legacySharedDataExists = () => typeof window !== "undefined" && localStorage.getItem(LEGACY_STORAGE_KEY) !== null;
 export function exportLegacySharedBackup(): string | null {
   if (typeof window === "undefined") return null;
@@ -55,7 +55,7 @@ function commit(next: Db) {
   db = next.mode === "empty" && recordCountRaw(next) > 0 ? { ...next, mode: "user" } : next;
   adapter.save(db);
   subs.forEach((f) => f());
-  if (commitHook) void commitHook(db);
+  if (commitHook) void commitHook(db, db.audit_log[0]);
 }
 const recordCountRaw = (d: Db) => Object.entries(d).filter(([k, v]) => k !== "audit_log" && Array.isArray(v)).reduce((n, [, v]) => n + (v as unknown[]).length, 0);
 const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
