@@ -35,3 +35,11 @@ export function setSelectedWorkspaceId(userId: string, workspaceId: string | nul
   if (workspaceId) localStorage.setItem(keyFor(userId), workspaceId);
   else localStorage.removeItem(keyFor(userId));
 }
+
+export async function getMyWorkspaceRole(workspaceId: string, userId: string): Promise<WorkspaceRole | null> {
+  const { data, error } = await supabase.from("workspace_members").select("role").eq("workspace_id", workspaceId).eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  return (data?.role as WorkspaceRole | undefined) ?? null;
+}
+export const canEditContinuityData = (role: WorkspaceRole | null) => role === "administrator" || role === "bcp_coordinator" || role === "contributor";
+export const canManageIntegrations = (role: WorkspaceRole | null) => role === "administrator" || role === "bcp_coordinator";
