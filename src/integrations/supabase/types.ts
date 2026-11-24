@@ -44,6 +44,24 @@ export type Database = {
         }
         Relationships: []
       }
+      workspaces: {
+        Row: { id: string; name: string; created_by: string; created_at: string; updated_at: string }
+        Insert: { id?: string; name: string; created_by: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; name?: string; created_by?: string; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: { workspace_id: string; user_id: string; role: Database["public"]["Enums"]["app_role"]; created_at: string }
+        Insert: { workspace_id: string; user_id: string; role?: Database["public"]["Enums"]["app_role"]; created_at?: string }
+        Update: { workspace_id?: string; user_id?: string; role?: Database["public"]["Enums"]["app_role"]; created_at?: string }
+        Relationships: []
+      }
+      workspace_bcp_state: {
+        Row: { workspace_id: string; state: Json; revision: number; updated_by: string; updated_at: string }
+        Insert: { workspace_id: string; state?: Json; revision?: number; updated_by: string; updated_at?: string }
+        Update: { workspace_id?: string; state?: Json; revision?: number; updated_by?: string; updated_at?: string }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
