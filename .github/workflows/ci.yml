@@ -13,10 +13,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      # The imported Lovable baseline has substantial pre-existing Prettier debt.
-      # Gate the security/remediation files now; baseline-wide formatting is a separate cleanup.
       - name: Lint remediation files
-        run: bunx eslint src/lib/bcp/store.ts src/lib/bcp/storage-isolation.test.ts src/routes/_authenticated/route.tsx --rule "prettier/prettier: off"
+        run: |
+          bunx eslint src/lib/bcp/store.ts src/lib/bcp/storage-isolation.test.ts src/routes/_authenticated/route.tsx --rule 'prettier/prettier: off'
       - name: Test
         run: bun run test --run
       - name: Build
