@@ -27,3 +27,22 @@ export async function appendWorkspaceAudit(workspaceId: string, userId: string, 
   const { error } = await supabase.from("workspace_audit_events").insert({ workspace_id: workspaceId, actor_user_id: userId, action, entity_type: entityType, entity_id: entityId, summary, metadata });
   if (error) throw error;
 }
+
+export type SyncDirection = "import" | "export" | "bidirectional";
+export type ServiceNowSyncRun = { id: string; workspace_id: string; direction: SyncDirection; dry_run: boolean; status: string; requested_by: string; started_at: string | null; completed_at: string | null; summary: Record<string, unknown>; error_message: string | null; created_at: string };
+
+export async function listServiceNowSyncRuns(workspaceId: string) {
+  const { data, error } = await supabase.from("servicenow_sync_runs").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(20);
+  if (error) throw error;
+  return (data ?? []) as ServiceNowSyncRun[];
+}
+
+export async function requestServiceNowSync(workspaceId: string, userId: string, direction: SyncDirection, dryRun = true) {
+  const connection = await getServiceNowConnection(workspaceId);
+  if (!connection || connection.status === "disabled") throw new Error("Configure and enable ServiceNow before requesting synchronization.");
+  if (!dryRun && connection.status !== "verified") throw new Error("A verified ServiceNow connection is required before a live synchronization.");
+  const { data, error } = await supabase.from("servicenow_sync_runs").insert({ workspace_id: workspaceId, direction, dry_run: dryRun, status: "queued", requested_by: userId }).select().single();
+  if (error) throw error;
+  await appendWorkspaceAudit(workspaceId, userId, dryRun ? "sync_preview_requested" : "sync_requested", "servicenow", data.id, `${dryRun ? "Preview" : "Live"} ServiceNow ${direction} synchronization requested`);
+  return data as ServiceNowSyncRun;
+}
