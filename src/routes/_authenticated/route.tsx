@@ -6,7 +6,9 @@ import { AppShell } from "@/components/bcp/AppShell";
 import { QuickStartPresentation } from "@/components/account/QuickStartPresentation";
 import { displayName, fetchProfile, profileOnboardingStore } from "@/lib/account/profile";
 import { maybeStartOnboarding } from "@/lib/account/onboarding";
-import { setAuditUser } from "@/lib/bcp/store";
+import { importDb, setAuditUser, setCommitHook, setStorageScope } from "@/lib/bcp/store";
+import { getSelectedWorkspaceId, listMyWorkspaces, setSelectedWorkspaceId } from "@/lib/account/workspaces";
+import { loadWorkspaceBcpState, saveWorkspaceBcpState } from "@/lib/bcp/cloud-state";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -24,7 +26,37 @@ function AuthenticatedLayout() {
   const nav = useNavigate();
   const { data: profile } = useQuery({ queryKey: ["profile", user.id], queryFn: () => fetchProfile(user.id) });
   const name = displayName(profile, user.email);
-  useEffect(() => { setAuditUser(user.email ? `${name} <${user.email}>` : name); }, [name, user.email]);
+  const { data: memberships = [] } = useQuery({ queryKey: ["workspaces", user.id], queryFn: listMyWorkspaces });
+  const selectedWorkspaceId = getSelectedWorkspaceId(user.id);
+  const activeMembership = memberships.find((m) => m.workspace_id === selectedWorkspaceId) ?? memberships[0];
+  const activeWorkspaceId = activeMembership?.workspace_id ?? null;
+  useEffect(() => {
+    setAuditUser(user.email ? `${name} <${user.email}>` : name);
+    setStorageScope(activeWorkspaceId ? `workspace:${activeWorkspaceId}` : `user:${user.id}`);
+    if (activeWorkspaceId && activeWorkspaceId !== selectedWorkspaceId) setSelectedWorkspaceId(user.id, activeWorkspaceId);
+  }, [name, user.email, user.id, activeWorkspaceId, selectedWorkspaceId]);
+  useEffect(() => {
+    setCommitHook(null);
+    if (!activeWorkspaceId) return;
+    let cancelled = false;
+    let revision = 0;
+    let hydrated = false;
+    void loadWorkspaceBcpState(activeWorkspaceId).then((cloud) => {
+      if (cancelled) return;
+      revision = cloud?.revision ?? 0;
+      if (cloud?.state) importDb(cloud.state);
+      hydrated = true;
+      setCommitHook(async (next) => {
+        if (!hydrated || cancelled) return;
+        const saved = await saveWorkspaceBcpState(activeWorkspaceId, next, user.id, revision);
+        revision = saved.revision;
+      });
+    });
+    return () => {
+      cancelled = true;
+      setCommitHook(null);
+    };
+  }, [activeWorkspaceId, user.id]);
   const checked = useRef<string | null>(null);
   useEffect(() => {
     if (!profile || checked.current === user.id) return;
@@ -34,6 +66,8 @@ function AuthenticatedLayout() {
   async function signOut() {
     await qc.cancelQueries(); qc.clear();
     setAuditUser(null);
+    setCommitHook(null);
+    setStorageScope(null);
     await supabase.auth.signOut();
     nav({ to: "/sign-in", replace: true });
   }

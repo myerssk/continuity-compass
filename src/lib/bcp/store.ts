@@ -4,11 +4,41 @@ import { type Db, type Rec, type TableName, type WizardState, tableDef } from ".
 import { demoDb, emptyDb } from "./seed";
 import { localStorageAdapter, type StorageAdapter } from "./adapter";
 
-export let adapter: StorageAdapter = localStorageAdapter("bcp-prototype-db-v2");
+const LEGACY_STORAGE_KEY = "bcp-prototype-db-v2";
+const scopedStorageKey = (scope: string) => `continuity-compass-db-v3:${scope}`;
+export let adapter: StorageAdapter = localStorageAdapter(scopedStorageKey("anonymous"));
+let storageScope = "anonymous";
 let auditUser = "Plan Coordinator";
+let commitHook: ((next: Db) => void | Promise<void>) | null = null;
 /** Audit attribution: the signed-in account's name/email replaces the generic default. */
 export function setAuditUser(name: string | null | undefined) { auditUser = name?.trim() || "Plan Coordinator"; }
 export const getAuditUser = () => auditUser;
+
+/** Select persistence namespace for signed-in user/workspace. Never auto-import legacy shared data. */
+export function setStorageScope(scope: string | null | undefined) {
+  const next = scope?.trim() || "anonymous";
+  if (next === storageScope) return;
+  storageScope = next;
+  adapter = localStorageAdapter(scopedStorageKey(next));
+  loaded = false;
+  db = SERVER;
+  load();
+  subs.forEach((fn) => fn());
+}
+export const getStorageScope = () => storageScope;
+export function setCommitHook(hook: ((next: Db) => void | Promise<void>) | null) { commitHook = hook; }
+export const legacySharedDataExists = () => typeof window !== "undefined" && localStorage.getItem(LEGACY_STORAGE_KEY) !== null;
+export function exportLegacySharedBackup(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LEGACY_STORAGE_KEY);
+}
+export function importLegacySharedDataIntoCurrentScope() {
+  if (typeof window === "undefined") throw new Error("Legacy browser storage is unavailable.");
+  const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) throw new Error("No legacy shared data was found.");
+  const parsed = JSON.parse(raw) as Db;
+  importDb({ ...emptyDb(), ...parsed, mode: parsed.mode ?? "user" });
+}
 const SERVER = emptyDb();
 let db: Db = SERVER;
 let loaded = false;
@@ -25,6 +55,7 @@ function commit(next: Db) {
   db = next.mode === "empty" && recordCountRaw(next) > 0 ? { ...next, mode: "user" } : next;
   adapter.save(db);
   subs.forEach((f) => f());
+  if (commitHook) void commitHook(db);
 }
 const recordCountRaw = (d: Db) => Object.entries(d).filter(([k, v]) => k !== "audit_log" && Array.isArray(v)).reduce((n, [, v]) => n + (v as unknown[]).length, 0);
 const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 9)}`;
