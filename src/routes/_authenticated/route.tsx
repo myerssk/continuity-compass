@@ -6,9 +6,9 @@ import { AppShell } from "@/components/bcp/AppShell";
 import { QuickStartPresentation } from "@/components/account/QuickStartPresentation";
 import { displayName, fetchProfile, profileOnboardingStore } from "@/lib/account/profile";
 import { maybeStartOnboarding } from "@/lib/account/onboarding";
-import { importDb, setAuditUser, setStorageScope } from "@/lib/bcp/store";
+import { importDb, setAuditUser, setCommitHook, setStorageScope } from "@/lib/bcp/store";
 import { getSelectedWorkspaceId, listMyWorkspaces, setSelectedWorkspaceId } from "@/lib/account/workspaces";
-import { loadWorkspaceBcpState } from "@/lib/bcp/cloud-state";
+import { loadWorkspaceBcpState, saveWorkspaceBcpState } from "@/lib/bcp/cloud-state";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -36,13 +36,27 @@ function AuthenticatedLayout() {
     if (activeWorkspaceId && activeWorkspaceId !== selectedWorkspaceId) setSelectedWorkspaceId(user.id, activeWorkspaceId);
   }, [name, user.email, user.id, activeWorkspaceId, selectedWorkspaceId]);
   useEffect(() => {
+    setCommitHook(null);
     if (!activeWorkspaceId) return;
     let cancelled = false;
+    let revision = 0;
+    let hydrated = false;
     void loadWorkspaceBcpState(activeWorkspaceId).then((cloud) => {
-      if (!cancelled && cloud?.state) importDb(cloud.state);
+      if (cancelled) return;
+      revision = cloud?.revision ?? 0;
+      if (cloud?.state) importDb(cloud.state);
+      hydrated = true;
+      setCommitHook(async (next) => {
+        if (!hydrated || cancelled) return;
+        const saved = await saveWorkspaceBcpState(activeWorkspaceId, next, user.id, revision);
+        revision = saved.revision;
+      });
     });
-    return () => { cancelled = true; };
-  }, [activeWorkspaceId]);
+    return () => {
+      cancelled = true;
+      setCommitHook(null);
+    };
+  }, [activeWorkspaceId, user.id]);
   const checked = useRef<string | null>(null);
   useEffect(() => {
     if (!profile || checked.current === user.id) return;
@@ -52,6 +66,7 @@ function AuthenticatedLayout() {
   async function signOut() {
     await qc.cancelQueries(); qc.clear();
     setAuditUser(null);
+    setCommitHook(null);
     setStorageScope(null);
     await supabase.auth.signOut();
     nav({ to: "/sign-in", replace: true });
