@@ -53,3 +53,24 @@ export async function listWorkspaceAuditEvents(workspaceId: string) {
   if (error) throw error;
   return (data ?? []) as WorkspaceAuditEvent[];
 }
+
+export type ServiceNowFieldMapping = { id: string; workspace_id: string; compass_entity: string; compass_field: string; servicenow_table: string; servicenow_field: string; direction: SyncDirection; enabled: boolean; transform_rule: Record<string, unknown> };
+export async function listServiceNowFieldMappings(workspaceId: string) {
+  const { data, error } = await supabase.from("servicenow_field_mappings").select("*").eq("workspace_id", workspaceId).order("compass_entity");
+  if (error) throw error;
+  return (data ?? []) as ServiceNowFieldMapping[];
+}
+export async function saveServiceNowFieldMapping(workspaceId: string, mapping: Omit<ServiceNowFieldMapping,"id"|"workspace_id">) {
+  const { data, error } = await supabase.from("servicenow_field_mappings").upsert({ workspace_id: workspaceId, ...mapping }, { onConflict: "workspace_id,compass_entity,compass_field,servicenow_table,servicenow_field" }).select().single();
+  if (error) throw error;
+  return data as ServiceNowFieldMapping;
+}
+export const serviceNowAdminChecklist = [
+  "Provide the ServiceNow instance HTTPS URL.",
+  "Create a dedicated least-privilege integration identity.",
+  "Register an OAuth application for Continuity Compass; keep client secrets server-side only.",
+  "Grant read access to the approved CMDB/ITSM tables and BCM tables only when BCM mode is selected.",
+  "Configure permitted field mappings and synchronization directions.",
+  "Complete connection verification before enabling live synchronization.",
+  "Run Preview / Dry Run and review counts, mappings, conflicts and errors before the first live sync.",
+] as const;
