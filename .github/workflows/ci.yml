@@ -15,7 +15,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Lint remediation files
         run: |
-          bunx eslint src/lib/bcp/store.ts src/lib/bcp/storage-isolation.test.ts src/routes/_authenticated/route.tsx src/routes/_authenticated/account.tsx src/lib/account/workspaces.ts src/lib/bcp/cloud-state.ts src/lib/integrations/servicenow.ts src/routes/_authenticated/integrations.tsx src/components/bcp/AppShell.tsx src/routes/_authenticated/audit.tsx src/integrations/supabase/types.ts --rule 'prettier/prettier: off'
+          bunx eslint src/lib/bcp/store.ts src/lib/bcp/storage-isolation.test.ts src/routes/_authenticated/route.tsx src/routes/_authenticated/account.tsx src/lib/account/workspaces.ts src/lib/bcp/cloud-state.ts src/lib/integrations/servicenow.ts src/routes/_authenticated/integrations.tsx src/components/bcp/AppShell.tsx src/components/bcp/DataControls.tsx src/routes/_authenticated/audit.tsx src/integrations/supabase/types.ts --rule 'prettier/prettier: off'
       - name: Test
         run: bun run test --run
       - name: Build
