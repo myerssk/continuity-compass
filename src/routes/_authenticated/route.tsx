@@ -28,7 +28,7 @@ function AuthenticatedLayout() {
   const name = displayName(profile, user.email);
   const { data: memberships = [] } = useQuery({ queryKey: ["workspaces", user.id], queryFn: listMyWorkspaces });
   const selectedWorkspaceId = getSelectedWorkspaceId(user.id);
-  const activeMembership = memberships.find((m: any) => m.workspace_id === selectedWorkspaceId) ?? memberships[0];
+  const activeMembership = memberships.find((m) => m.workspace_id === selectedWorkspaceId) ?? memberships[0];
   const activeWorkspaceId = activeMembership?.workspace_id ?? null;
   useEffect(() => {
     setAuditUser(user.email ? `${name} <${user.email}>` : name);
