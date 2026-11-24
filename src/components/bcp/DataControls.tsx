@@ -32,7 +32,7 @@ function DataDialog({ kind, onClose }: { kind: Kind; onClose: () => void }) {
               <AlertDialogTitle className="flex items-center gap-2 text-primary"><FlaskConical className="h-5 w-5 text-orange" />Load demo / training data?</AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-2 text-sm">
-                  <p>This loads a <b>fictional</b> sample organization with functions, processes, components, fallbacks, runbooks, tests, gaps and approvals for training and evaluation. It is not real organizational information, and the app will be labelled <b>Demo Data · Training Mode</b> while it is loaded.</p>
+                  <p><b>Training safeguard:</b> Demo data replaces the active workspace dataset. Do not use this action in a production workspace. Download a backup first.</p><p>This loads a <b>fictional</b> sample organization with functions, processes, components, fallbacks, runbooks, tests, gaps and approvals for training and evaluation. It is not real organizational information, and the app will be labelled <b>Demo Data · Training Mode</b> while it is loaded.</p>
                   {n > 0 ? (
                     <p className={cn("rounded border p-2", userData ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-muted")}>
                       {userData ? <>You have <b>{n} records you entered yourself</b>. Loading demo data will <b>replace them</b>. Download a backup first if you want to keep them.</> : <>The current {n} demo records will be reset to the original training set.</>}
@@ -54,7 +54,7 @@ function DataDialog({ kind, onClose }: { kind: Kind; onClose: () => void }) {
               <AlertDialogTitle className="flex items-center gap-2 text-destructive"><Trash2 className="h-5 w-5" />Clear all data and start fresh?</AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-2 text-sm">
-                  <p>This permanently deletes <b>all {n} records</b> stored in this browser — organizations, plans, functions, processes, components, fallbacks, runbooks, tests, evidence, gaps, approvals and audit history{db.mode === "demo" ? " (currently demo data)" : ""}. It cannot be undone.</p>
+                  <p>This permanently deletes <b>all {n} continuity records</b> in the active workspace. A browser copy may also be retained for resilience, but the active workspace cloud state is authoritative — organizations, plans, functions, processes, components, fallbacks, runbooks, tests, evidence, gaps, approvals and audit history{db.mode === "demo" ? " (currently demo data)" : ""}. It cannot be undone.</p>
                   {userData && (
                     <label className="block">
                       <span className="text-foreground">These include data you entered. Type <b>DELETE</b> to confirm:</span>
