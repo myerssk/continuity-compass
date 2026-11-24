@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, PLANNED_ROLES, profileOnboardingStore, updateProfileName } from "@/lib/account/profile";
 import { restartOnboarding } from "@/lib/account/onboarding";
 import { ReplayOnboardingButton } from "@/components/account/ReplayOnboardingButton";
+import { exportLegacySharedBackup, importLegacySharedDataIntoCurrentScope, legacySharedDataExists } from "@/lib/bcp/store";
 import { createWorkspace, getSelectedWorkspaceId, listMyWorkspaces, setSelectedWorkspaceId } from "@/lib/account/workspaces";
 
 export const Route = createFileRoute("/_authenticated/account")({
@@ -51,6 +52,9 @@ function Account() {
     await qc.invalidateQueries({ queryKey: ["profile", user.id] });
   }
   const onboarded = profile?.onboarding_completed_at;
+  const legacyData = legacySharedDataExists();
+  function downloadLegacyBackup() { const raw = exportLegacySharedBackup(); if (!raw) return; const blob = new Blob([raw], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "continuity-compass-legacy-backup.json"; a.click(); URL.revokeObjectURL(a.href); }
+  function migrateLegacy() { if (!window.confirm("Import the legacy shared browser data into the currently selected workspace/user scope? Download a backup first. Existing current-scope data may be replaced.")) return; try { importLegacySharedDataIntoCurrentScope(); toast.success("Legacy data imported into the current isolated scope"); } catch (err) { toast.error((err as Error).message); } }
   return (
     <>
       <PageHeader title="Account & Security">Your sign-in identity is kept separate from BCP/DRP records.</PageHeader>
@@ -84,6 +88,7 @@ function Account() {
           <div className="mt-3 space-y-2">{memberships.map((m) => <button key={m.workspace_id} onClick={() => { setSelectedWorkspaceId(user.id, m.workspace_id); window.location.reload(); }} className="flex w-full items-center justify-between rounded border border-border px-3 py-2 text-left text-sm"><span>{m.workspaces?.name ?? m.workspace_id}</span><span className="text-xs text-muted-foreground">{m.role}{getSelectedWorkspaceId(user.id) === m.workspace_id ? " · Active" : ""}</span></button>)}</div>
           <form onSubmit={addWorkspace} className="mt-4 flex gap-2"><Input aria-label="New workspace name" placeholder="New workspace name" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} /><Button type="submit">Create</Button></form>
         </Panel>
+        {legacyData && <Panel title="Legacy browser data"><p className="text-sm">Legacy shared-browser BCP/DRP data was detected. It will never be imported automatically.</p><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={downloadLegacyBackup}>Download legacy backup</Button><Button onClick={migrateLegacy}>Import into current scope</Button></div></Panel>}
         <Panel title="Workspace roles">
           <p className="text-sm">Workspace roles are enforced by database row-level security for cloud continuity data. Global role assignments below are retained for compatibility and administration.</p>
           <ul className="mt-3 divide-y divide-border text-sm">{PLANNED_ROLES.map(([key, label, text]) => <li key={key} className="flex justify-between gap-3 py-2"><span><b>{label}</b> — <span className="text-muted-foreground">{text}</span></span>{roles.includes(key) && <span className="text-xs font-semibold text-teal">Assigned</span>}</li>)}</ul>
