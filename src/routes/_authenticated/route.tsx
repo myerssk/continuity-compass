@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/bcp/AppShell";
 import { QuickStartPresentation } from "@/components/account/QuickStartPresentation";
@@ -36,24 +36,37 @@ function AuthenticatedLayout() {
     setStorageScope(activeWorkspaceId ? `workspace:${activeWorkspaceId}` : `user:${user.id}`);
     if (activeWorkspaceId && activeWorkspaceId !== selectedWorkspaceId) setSelectedWorkspaceId(user.id, activeWorkspaceId);
   }, [name, user.email, user.id, activeWorkspaceId, selectedWorkspaceId]);
+  const [syncError, setSyncError] = useState("");
   useEffect(() => {
+    setSyncError("");
     setCommitHook(null);
     if (!activeWorkspaceId) return;
     let cancelled = false;
     let revision = 0;
     let hydrated = false;
+    let queue = Promise.resolve();
+    let failed = false;
+    const audited = new Set<string>();
     void loadWorkspaceBcpState(activeWorkspaceId).then((cloud) => {
       if (cancelled) return;
       revision = cloud?.revision ?? 0;
       if (cloud?.state) importDb(cloud.state);
+      for (const entry of cloud?.state.audit_log ?? []) audited.add(entry.id);
       hydrated = true;
       setCommitHook(async (next, entry) => {
         if (!hydrated || cancelled) return;
-        const saved = await saveWorkspaceBcpState(activeWorkspaceId, next, user.id, revision);
-        revision = saved.revision;
-        if (entry) await appendWorkspaceAudit(activeWorkspaceId, user.id, entry.action, entry.table, entry.record_id, entry.summary, { local_audit_id: entry.id });
+        queue = queue.then(async () => {
+          if (failed || cancelled) return;
+          const saved = await saveWorkspaceBcpState(activeWorkspaceId, next, user.id, revision);
+          revision = saved.revision;
+          if (entry && !audited.has(entry.id)) {
+            await appendWorkspaceAudit(activeWorkspaceId, user.id, entry.action, entry.table, entry.record_id, entry.summary, { local_audit_id: entry.id });
+            audited.add(entry.id);
+          }
+        }).catch(() => { failed = true; if (!cancelled) setSyncError("Cloud synchronization failed. Export a backup of unsaved changes before reloading."); });
+        await queue;
       });
-    });
+    }).catch(() => { if (!cancelled) setSyncError("Workspace could not be loaded. Reload before editing."); });
     return () => {
       cancelled = true;
       setCommitHook(null);
@@ -79,6 +92,7 @@ function AuthenticatedLayout() {
   };
   return (
     <AppShell account={{ name, email: user.email ?? "", onSignOut: signOut }}>
+      {syncError ? <div role="alert" className="p-4 text-destructive">{syncError}</div> : null}
       <Outlet />
       <QuickStartPresentation userId={user.id} store={store} />
     </AppShell>
