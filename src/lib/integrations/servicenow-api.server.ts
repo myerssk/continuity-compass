@@ -29,5 +29,14 @@ export class ServiceNowApi {
     if (!Array.isArray(result.result)) throw new Error("Invalid ServiceNow Table API response.");
     return result.result as Record<string, unknown>[];
   }
+  async updateRecord(table: string, sysId: string, fields: Record<string, unknown>, allowedTables: readonly string[], allowedFields: readonly string[]) {
+    if (!allowedTables.includes(table) || !/^[a-z][a-z0-9_]*$/.test(table) || !/^[a-f0-9]{32}$/i.test(sysId)) throw new Error("Unapproved table or invalid record identifier.");
+    const keys = Object.keys(fields);
+    if (!keys.length || keys.some(key => key === "sys_id" || !allowedFields.includes(key) || !/^[a-z][a-z0-9_]*$/.test(key))) throw new Error("Unapproved export field.");
+    if (!this.token) await this.authenticate();
+    const result = await this.request("/api/now/table/" + table + "/" + sysId, { method: "PATCH", headers: { Authorization: "Bearer " + this.token, Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(fields) });
+    if (!result.result || result.result.sys_id !== sysId) throw new Error("Invalid ServiceNow update response.");
+    return result.result as Record<string, unknown>;
+  }
   async verify() { await this.readPage("cmdb_ci", ["sys_id"], 0); }
 }
