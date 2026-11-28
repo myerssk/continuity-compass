@@ -41,7 +41,7 @@ export async function requestServiceNowSync(workspaceId: string, userId: string,
   const connection = await getServiceNowConnection(workspaceId);
   if (!connection || connection.status === "disabled") throw new Error("Configure and enable ServiceNow before requesting synchronization.");
   if (!dryRun && connection.status !== "verified") throw new Error("A verified ServiceNow connection is required before a live synchronization.");
-  const { data, error } = await supabase.from("servicenow_sync_runs").insert({ workspace_id: workspaceId, direction, dry_run: dryRun, status: "queued", requested_by: userId }).select().single();
+  const { data, error } = await supabase.from("servicenow_sync_runs").insert({ workspace_id: workspaceId, direction, dry_run: dryRun, requested_by: userId }).select().single();
   if (error) throw error;
   await appendWorkspaceAudit(workspaceId, userId, dryRun ? "sync_preview_requested" : "sync_requested", "servicenow", data.id, `${dryRun ? "Preview" : "Live"} ServiceNow ${direction} synchronization requested`);
   return data as ServiceNowSyncRun;
