@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Activity, Compass, AlertTriangle, BookOpen, Boxes, Building2, CheckSquare, CircleHelp, ClipboardList, FileCheck2, FlaskConical, GitBranch, History, LayoutDashboard, LifeBuoy, Network, PackageOpen, ShieldCheck, Workflow, LogOut, UserRound, ChevronDown } from "lucide-react";
+import { Activity, Compass, AlertTriangle, BookOpen, Boxes, Building2, CheckSquare, CircleHelp, ClipboardList, FileCheck2, FlaskConical, GitBranch, History, LayoutDashboard, LifeBuoy, Network, PackageOpen, ShieldCheck, Workflow, Plug, LogOut, UserRound, ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { DemoBanner, SidebarDataControls } from "./DataControls";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ const NAV: { group: string; section: Section; items: { to: string; type?: string
     { to: "/$type", type: "approvals", label: "Approvals", icon: ShieldCheck },
     { to: "/audit", label: "Audit History", icon: History },
   ] },
+  { group: "Integration", section: "overview", items: [{ to: "/integrations", label: "ServiceNow", icon: Plug }] },
   { group: "Help", section: "help", items: [{ to: "/quick-start", label: "Quick Start", icon: Compass }, { to: "/help", label: "User Manual", icon: BookOpen }] },
 ];
 
